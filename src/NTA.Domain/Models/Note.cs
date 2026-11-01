@@ -5,6 +5,9 @@ using NTA.Core.ValueObjects;
 
 namespace NTA.Domain.Models;
 
+/// <summary>
+/// Represents the note aggregate and enforces its ownership and sharing invariants.
+/// </summary>
 public sealed class Note
 {
     public Note(

@@ -1,14 +1,18 @@
 using Microsoft.EntityFrameworkCore;
+using NTA.Infrastructure.Sqlite.Models;
 
 namespace NTA.Infrastructure.Sqlite;
 
+/// <summary>
+/// Represents the SQLite persistence context for note records.
+/// </summary>
 public sealed class NoteDbContext(DbContextOptions<NoteDbContext> options) : DbContext(options)
 {
-    internal DbSet<NoteEntity> Notes => Set<NoteEntity>();
+    internal DbSet<SqliteNote> Notes => Set<SqliteNote>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        var note = modelBuilder.Entity<NoteEntity>();
+        var note = modelBuilder.Entity<SqliteNote>();
 
         note.ToTable("Notes");
         note.HasKey(entity => entity.Id);

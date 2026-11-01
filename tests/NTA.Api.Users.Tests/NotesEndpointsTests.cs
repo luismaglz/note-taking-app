@@ -4,10 +4,12 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc.Testing;
 using NTA.Api.Contracts;
-using NTA.Domain.Models;
 
 namespace NTA.Api.Users.Tests;
 
+/// <summary>
+/// Verifies the note CRUD HTTP contract end to end.
+/// </summary>
 public sealed class NotesEndpointsTests(NotesApiFactory factory) : IClassFixture<NotesApiFactory>
 {
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
@@ -18,7 +20,7 @@ public sealed class NotesEndpointsTests(NotesApiFactory factory) : IClassFixture
         using var client = factory.CreateClient();
         var createResponse = await client.PostAsJsonAsync(
             "/notes",
-            new CreateNoteRequest(7, "Draft", "Initial content", NoteVisibility.Private, null));
+            new CreateNoteRequest(7, "Draft", "Initial content", NoteVisibilityContract.Private, null));
 
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
 
@@ -37,14 +39,14 @@ public sealed class NotesEndpointsTests(NotesApiFactory factory) : IClassFixture
 
         var updateResponse = await client.PutAsJsonAsync(
             $"/notes/{created.Id}?userId=7",
-            new UpdateNoteRequest("Published", "Updated content", NoteVisibility.Public, null));
+            new UpdateNoteRequest("Published", "Updated content", NoteVisibilityContract.Public, null));
 
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
 
         var updated = await updateResponse.Content.ReadFromJsonAsync<NoteResponse>(JsonOptions);
         Assert.NotNull(updated);
         Assert.Equal("Published", updated.Title);
-        Assert.Equal(NoteVisibility.Public, updated.Visibility);
+        Assert.Equal(NoteVisibilityContract.Public, updated.Visibility);
 
         var deleteResponse = await client.DeleteAsync($"/notes/{created.Id}?userId=7");
 

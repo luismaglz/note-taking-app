@@ -3,6 +3,9 @@
 
 namespace NTA.Core.ValueObjects;
 
+/// <summary>
+/// Represents a validated identifier for a team aggregate.
+/// </summary>
 public readonly record struct TeamId
 {
     public int Value { get; }
