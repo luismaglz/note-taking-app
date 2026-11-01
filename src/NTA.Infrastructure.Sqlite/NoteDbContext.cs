@@ -33,6 +33,7 @@ public sealed class NoteDbContext(DbContextOptions<NoteDbContext> options) : DbC
         user.ToTable("Users");
         user.HasKey(entity => entity.Id);
         user.Property(entity => entity.Id).ValueGeneratedNever();
+        user.Property(entity => entity.Name).HasMaxLength(200).IsRequired();
 
         var policy = modelBuilder.Entity<SqliteNoteAccessPolicy>();
 
@@ -51,6 +52,7 @@ public sealed class NoteDbContext(DbContextOptions<NoteDbContext> options) : DbC
         team.ToTable("Teams");
         team.HasKey(entity => entity.Id);
         team.Property(entity => entity.Id).ValueGeneratedNever();
+        team.Property(entity => entity.Name).HasMaxLength(200).IsRequired();
 
         var membership = modelBuilder.Entity<SqliteTeamMembership>();
 
