@@ -4,7 +4,6 @@ namespace NTA.Api.Contracts;
 /// Defines the payload used to create a note.
 /// </summary>
 public sealed record CreateNoteRequest(
-    int OwnerId,
     string Title,
     string Content,
     NoteVisibilityContract Visibility,

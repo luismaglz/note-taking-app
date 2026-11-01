@@ -10,6 +10,8 @@ public sealed class NoteDbContext(DbContextOptions<NoteDbContext> options) : DbC
 {
     internal DbSet<SqliteNote> Notes => Set<SqliteNote>();
 
+    internal DbSet<SqliteUser> Users => Set<SqliteUser>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         var note = modelBuilder.Entity<SqliteNote>();
@@ -19,5 +21,11 @@ public sealed class NoteDbContext(DbContextOptions<NoteDbContext> options) : DbC
         note.Property(entity => entity.Title).HasMaxLength(200).IsRequired();
         note.Property(entity => entity.Content).IsRequired();
         note.Property(entity => entity.Visibility).HasMaxLength(20).IsRequired();
+
+        var user = modelBuilder.Entity<SqliteUser>();
+
+        user.ToTable("Users");
+        user.HasKey(entity => entity.Id);
+        user.Property(entity => entity.Id).ValueGeneratedNever();
     }
 }
