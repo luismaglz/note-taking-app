@@ -28,7 +28,7 @@ app.UseAuthentication();
 app.UseUserContext();
 app.UseAuthorization();
 
-app.MapGet("/", () => Results.Redirect("/swagger"));
+app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 app.MapControllers();
 
 await app.Services.EnsureSqliteDatabaseCreatedAsync();
