@@ -1,8 +1,6 @@
 # Note Taking App
 
-This repository is a DDD-focused exercise for a note-taking application. The
-goal is to make the domain model and API contracts explicit before adding
-infrastructure or UI complexity.
+Using DDD, ports and adapters.
 
 ## Domain model
 
@@ -43,28 +41,6 @@ Two APIs keep administrative work separate from user-facing note operations:
 SQLite is the initial persistence implementation. It is an implementation
 detail behind repository contracts, so the domain and API contracts remain
 independent of the database.
-
-## Delivery phases
-
-The Users API includes a deliberately small policy-management surface:
-`POST /notes/{noteId}/access-grants`. Only the note owner can add a grant.
-There is no general team-management API yet; SQLite seeds team `1` with users
-`2` and `3` solely to exercise team authorization.
-
-## Planned Users API contract
-
-Phase 3 will expose the following routes:
-
-| Method | Route | Purpose |
-|---|---|---|
-| `POST` | `/notes` | Create a note for the authenticated user. |
-| `GET` | `/notes/{noteId}` | Retrieve a note. |
-| `GET` | `/notes` | List notes available to the requesting user. |
-| `PUT` | `/notes/{noteId}` | Replace note content with `Write` access. |
-| `DELETE` | `/notes/{noteId}` | Delete a note with `Delete` access. |
-| `POST` | `/notes/{noteId}/access-grants` | Owner adds an explicit user or team permission. |
-
-Authenticated request identity comes from the JWT-backed user context.
 
 ## Pull-request validation
 
