@@ -3,12 +3,17 @@
 
 namespace NTA.Core.ValueObjects;
 
-public struct TeamId
+public readonly record struct TeamId
 {
-    public int Value { get; private set; }
+    public int Value { get; }
 
-    public TeamId(int teamId)
+    public TeamId(int value)
     {
-        Value = teamId;
+        if (value <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(value), "Team id must be greater than zero.");
+        }
+
+        Value = value;
     }
 }

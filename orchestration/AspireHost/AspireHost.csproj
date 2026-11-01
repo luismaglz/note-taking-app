@@ -5,4 +5,8 @@
         <UserSecretsId>f64496cd-05aa-4453-97ec-2725eeeee506</UserSecretsId>
     </PropertyGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\NTA.Api.Users\NTA.Api.Users.csproj"/>
+    </ItemGroup>
+
 </Project>
