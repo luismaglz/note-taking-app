@@ -20,6 +20,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\..\src\NTA.Api.Contracts\NTA.Api.Contracts.csproj"/>
         <ProjectReference Include="..\..\src\NTA.Api.Users\NTA.Api.Users.csproj"/>
     </ItemGroup>
 
