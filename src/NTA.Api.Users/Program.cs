@@ -1,6 +1,7 @@
 using NTA.Infrastructure.Sqlite;
 using NTA.Core.Authentication;
 using NSwag;
+using NSwag.Generation.Processors.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,14 @@ builder.Services.AddOpenApiDocument(options =>
 {
     options.Title = "Note Taking App Users API";
     options.Version = "v1";
+    options.AddSecurity("Bearer", [], new OpenApiSecurityScheme
+    {
+        Type = OpenApiSecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Enter a user JWT issued by POST /auth/{userId}."
+    });
+    options.OperationProcessors.Add(new AspNetCoreOperationSecurityScopeProcessor("Bearer"));
 });
 builder.Services.AddSqliteInfrastructure(
     builder.Configuration.GetConnectionString("Notes") ?? "Data Source=note-taking-app.db");
