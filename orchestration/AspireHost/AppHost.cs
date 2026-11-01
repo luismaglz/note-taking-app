@@ -9,16 +9,22 @@ builder.AddContainer("notes-sqlite", "keinos/sqlite3", "latest")
     .WithEntrypoint("/bin/sh")
     .WithArgs("-c", "tail -f /dev/null");
 
-builder.AddProject<Projects.NTA_Api_Users>("users-api")
+var usersApi = builder.AddProject<Projects.NTA_Api_Users>("users-api")
     .WithEnvironment(
         "ConnectionStrings__Notes",
         sqliteConnectionString)
     .WithExternalHttpEndpoints();
 
-builder.AddProject<Projects.NTA_Api_Management>("management-api")
+var managementApi = builder.AddProject<Projects.NTA_Api_Management>("management-api")
     .WithEnvironment(
         "ConnectionStrings__Notes",
         sqliteConnectionString)
     .WithExternalHttpEndpoints();
+
+builder.AddProject<Projects.NTA_DemoSeeder>("demo-seeder")
+    .WithEnvironment("ManagementApi__BaseUrl", managementApi.GetEndpoint("http"))
+    .WithEnvironment("UsersApi__BaseUrl", usersApi.GetEndpoint("http"))
+    .WaitFor(managementApi)
+    .WaitFor(usersApi);
 
 builder.Build().Run();
