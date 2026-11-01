@@ -24,9 +24,46 @@ public sealed class SqliteNoteRepository(NoteDbContext dbContext) : INoteReposit
         (await dbContext.Notes
             .AsNoTracking()
             .OrderByDescending(note => note.UpdatedAtUnixMilliseconds)
+            .ThenBy(note => note.Id)
             .ToListAsync(cancellationToken))
         .Select(SqliteNoteMapper.ToDomain)
         .ToArray();
+
+    public async Task<IReadOnlyList<Note>> ListVisibleToAsync(
+        UserId userId,
+        CancellationToken cancellationToken = default)
+    {
+        var directlyReadableNoteIds = dbContext.NoteAccessGrants
+            .AsNoTracking()
+            .Where(grant =>
+                grant.PrincipalKind == nameof(AccessPrincipalKind.User) &&
+                grant.PrincipalId == userId.Value &&
+                grant.Permission == nameof(NotePermission.Read))
+            .Select(grant => grant.NoteId);
+        var teamReadableNoteIds =
+            from grant in dbContext.NoteAccessGrants.AsNoTracking()
+            join membership in dbContext.TeamMemberships.AsNoTracking()
+                on grant.PrincipalId equals membership.TeamId
+            where grant.PrincipalKind == nameof(AccessPrincipalKind.Team) &&
+                  membership.UserId == userId.Value &&
+                  grant.Permission == nameof(NotePermission.Read)
+            select grant.NoteId;
+        var visibleNoteIds = dbContext.Notes
+            .AsNoTracking()
+            .Where(note => note.OwnerId == userId.Value)
+            .Select(note => note.Id)
+            .Union(directlyReadableNoteIds)
+            .Union(teamReadableNoteIds);
+
+        return (await dbContext.Notes
+            .AsNoTracking()
+            .Where(note => visibleNoteIds.Contains(note.Id))
+            .OrderByDescending(note => note.UpdatedAtUnixMilliseconds)
+            .ThenBy(note => note.Id)
+            .ToListAsync(cancellationToken))
+            .Select(SqliteNoteMapper.ToDomain)
+            .ToArray();
+    }
 
     public async Task AddAsync(Note note, CancellationToken cancellationToken = default)
     {

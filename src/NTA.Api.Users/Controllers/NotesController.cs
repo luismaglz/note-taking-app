@@ -56,21 +56,8 @@ public sealed class NotesController(
         try
         {
             var userId = userContext.GetRequiredUserId();
-            var teamIds = (await teamRepository.ListByMemberAsync(userId, cancellationToken))
-                .Select(team => team.Id)
-                .ToHashSet();
-            var notes = await repository.ListAsync(cancellationToken);
-            var accessibleNotes = new List<NoteResponse>();
-
-            foreach (var note in notes)
-            {
-                if (await HasAccessAsync(note, userId, teamIds, NotePermission.Read, cancellationToken))
-                {
-                    accessibleNotes.Add(NoteContractMapper.ToContract(note));
-                }
-            }
-
-            return Ok(accessibleNotes);
+            var notes = await repository.ListVisibleToAsync(userId, cancellationToken);
+            return Ok(notes.Select(NoteContractMapper.ToContract).ToArray());
         }
         catch (ArgumentException exception)
         {
