@@ -136,7 +136,7 @@ public sealed class TeamsController(
         var team = await FindTeamAsync(teamId, cancellationToken);
         return team is null
             ? NotFound()
-            : Ok(team.Members.Order().Select(member => new TeamMemberResponse(member.Value)).ToArray());
+            : Ok(team.Members.OrderBy(member => member.Value).Select(member => new TeamMemberResponse(member.Value)).ToArray());
     }
 
     /// <summary>

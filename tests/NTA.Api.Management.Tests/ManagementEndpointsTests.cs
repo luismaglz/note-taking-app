@@ -61,12 +61,15 @@ public sealed class ManagementEndpointsTests(ManagementAuthFactory factory) : IC
         Assert.Equal(HttpStatusCode.OK, addMember.StatusCode);
         Assert.Contains(101, (await addMember.Content.ReadFromJsonAsync<TeamResponse>())!.MemberIds);
 
+        var addSecondMember = await client.PostAsJsonAsync("/teams/201/members", new AddTeamMemberRequest(2));
+        Assert.Equal(HttpStatusCode.OK, addSecondMember.StatusCode);
+
         var updateMemberTeam = await client.PutAsJsonAsync("/teams/201", new UpdateTeamRequest("Platform Team"));
         Assert.Equal(HttpStatusCode.OK, updateMemberTeam.StatusCode);
         Assert.Contains(101, (await updateMemberTeam.Content.ReadFromJsonAsync<TeamResponse>())!.MemberIds);
 
         var members = await client.GetFromJsonAsync<TeamMemberResponse[]>("/teams/201/members");
-        Assert.Contains(members!, member => member.UserId == 101);
+        Assert.Equal([2, 101], members!.Select(member => member.UserId));
 
         var duplicate = await client.PostAsJsonAsync("/teams/201/members", new AddTeamMemberRequest(101));
         Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
@@ -80,6 +83,8 @@ public sealed class ManagementEndpointsTests(ManagementAuthFactory factory) : IC
         var deleteNonEmptyTeam = await client.DeleteAsync("/teams/201");
         Assert.Equal(HttpStatusCode.Conflict, deleteNonEmptyTeam.StatusCode);
 
+        var removeSecondMember = await client.DeleteAsync("/teams/201/members/2");
+        Assert.Equal(HttpStatusCode.OK, removeSecondMember.StatusCode);
         var removeMember = await client.DeleteAsync("/teams/201/members/101");
         Assert.Equal(HttpStatusCode.OK, removeMember.StatusCode);
         Assert.Empty((await removeMember.Content.ReadFromJsonAsync<TeamResponse>())!.MemberIds);
