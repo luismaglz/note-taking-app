@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc.Testing;
-using NTA.Api.Users.Contracts;
+using NTA.Api.Contracts;
 using NTA.Domain.Models;
 
 namespace NTA.Api.Users.Tests;

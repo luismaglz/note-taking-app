@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using NTA.Api.Users.Contracts;
+using NTA.Api.Contracts;
 using NTA.Core.ValueObjects;
 using NTA.Domain.Interfaces;
 using NTA.Domain.Models;
