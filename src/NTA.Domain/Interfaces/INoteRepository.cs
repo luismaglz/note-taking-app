@@ -15,6 +15,11 @@ public interface INoteRepository
 
     Task<IReadOnlyList<Note>> ListAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Retrieves notes visible to a user through ownership or read access grants.
+    /// </summary>
+    Task<IReadOnlyList<Note>> ListVisibleToAsync(UserId userId, CancellationToken cancellationToken = default);
+
     Task AddAsync(Note note, CancellationToken cancellationToken = default);
 
     Task UpdateAsync(Note note, CancellationToken cancellationToken = default);
