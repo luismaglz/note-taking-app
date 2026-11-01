@@ -15,4 +15,24 @@ public interface IUserRepository
     /// Retrieves a user by identifier.
 /// </summary>
     Task<User?> GetByIdAsync(UserId id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves all users.
+    /// </summary>
+    Task<IReadOnlyList<User>> ListAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Adds a user aggregate.
+    /// </summary>
+    Task AddAsync(User user, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates a user aggregate.
+    /// </summary>
+    Task UpdateAsync(User user, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes a user aggregate.
+    /// </summary>
+    Task<bool> DeleteAsync(UserId id, CancellationToken cancellationToken = default);
 }
