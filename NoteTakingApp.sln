@@ -1,0 +1,62 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{A67FC207-28AC-4BBC-AB0D-E3C9882F7B17}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{1664AC2A-852C-4549-8307-B2D50A43E64D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "orchestration", "orchestration", "{C5D84C11-2BA3-4B43-BF91-163A62A5160F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "solution-items", "solution-items", "{DA4C0499-E410-4A3E-BA80-3120190DCF8D}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+		.editorconfig = .editorconfig
+		.gitignore = .gitignore
+		Directory.Build.props = Directory.Build.props
+		Directory.Packages.props = Directory.Packages.props
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTA.Infrastructure.Sqlite", "src\NTA.Infrastructure.Sqlite\NTA.Infrastructure.Sqlite.csproj", "{4E0A15C3-828D-4202-B0DD-177CACF66566}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTA.Domain", "src\NTA.Domain\NTA.Domain.csproj", "{0E58E95C-ED7A-48C7-9288-6FEDB8680257}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTA.Api.Users", "src\NTA.Api.Users\NTA.Api.Users.csproj", "{5CF417D6-DF0B-46F6-A259-2F5D8B6F2466}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTA.Api.Management", "src\NTA.Api.Management\NTA.Api.Management.csproj", "{DA9996EC-6B3A-4E43-BB8A-1E17B1F7B170}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AspireHost", "orchestration\AspireHost\AspireHost.csproj", "{3F13D778-6FE2-435F-8CAD-3C30DC27DEFD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{4E0A15C3-828D-4202-B0DD-177CACF66566} = {A67FC207-28AC-4BBC-AB0D-E3C9882F7B17}
+		{0E58E95C-ED7A-48C7-9288-6FEDB8680257} = {A67FC207-28AC-4BBC-AB0D-E3C9882F7B17}
+		{5CF417D6-DF0B-46F6-A259-2F5D8B6F2466} = {A67FC207-28AC-4BBC-AB0D-E3C9882F7B17}
+		{DA9996EC-6B3A-4E43-BB8A-1E17B1F7B170} = {A67FC207-28AC-4BBC-AB0D-E3C9882F7B17}
+		{3F13D778-6FE2-435F-8CAD-3C30DC27DEFD} = {C5D84C11-2BA3-4B43-BF91-163A62A5160F}
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4E0A15C3-828D-4202-B0DD-177CACF66566}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4E0A15C3-828D-4202-B0DD-177CACF66566}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4E0A15C3-828D-4202-B0DD-177CACF66566}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4E0A15C3-828D-4202-B0DD-177CACF66566}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0E58E95C-ED7A-48C7-9288-6FEDB8680257}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0E58E95C-ED7A-48C7-9288-6FEDB8680257}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0E58E95C-ED7A-48C7-9288-6FEDB8680257}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0E58E95C-ED7A-48C7-9288-6FEDB8680257}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5CF417D6-DF0B-46F6-A259-2F5D8B6F2466}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5CF417D6-DF0B-46F6-A259-2F5D8B6F2466}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5CF417D6-DF0B-46F6-A259-2F5D8B6F2466}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5CF417D6-DF0B-46F6-A259-2F5D8B6F2466}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DA9996EC-6B3A-4E43-BB8A-1E17B1F7B170}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DA9996EC-6B3A-4E43-BB8A-1E17B1F7B170}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DA9996EC-6B3A-4E43-BB8A-1E17B1F7B170}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DA9996EC-6B3A-4E43-BB8A-1E17B1F7B170}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3F13D778-6FE2-435F-8CAD-3C30DC27DEFD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3F13D778-6FE2-435F-8CAD-3C30DC27DEFD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3F13D778-6FE2-435F-8CAD-3C30DC27DEFD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3F13D778-6FE2-435F-8CAD-3C30DC27DEFD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
