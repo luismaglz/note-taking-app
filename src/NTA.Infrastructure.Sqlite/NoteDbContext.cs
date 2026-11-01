@@ -28,6 +28,7 @@ public sealed class NoteDbContext(DbContextOptions<NoteDbContext> options) : DbC
         note.HasKey(entity => entity.Id);
         note.Property(entity => entity.Title).HasMaxLength(200).IsRequired();
         note.Property(entity => entity.Content).IsRequired();
+        note.Property(entity => entity.Revision).HasDefaultValue(1).IsRequired();
         var user = modelBuilder.Entity<SqliteUser>();
 
         user.ToTable("Users");
