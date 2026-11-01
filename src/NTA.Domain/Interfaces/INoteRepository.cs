@@ -6,6 +6,9 @@ using NTA.Domain.Models;
 
 namespace NTA.Domain.Interfaces;
 
+/// <summary>
+/// Defines persistence operations for note aggregates.
+/// </summary>
 public interface INoteRepository
 {
     Task<Note?> GetByIdAsync(NoteId id, CancellationToken cancellationToken = default);

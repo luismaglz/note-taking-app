@@ -1,11 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
 using NTA.Api.Contracts;
+using NTA.Api.Users.Mappings;
 using NTA.Core.ValueObjects;
 using NTA.Domain.Interfaces;
 using NTA.Domain.Models;
 
 namespace NTA.Api.Users.Controllers;
 
+/// <summary>
+/// Provides CRUD operations for user notes.
+/// </summary>
 [ApiController]
 [Route("notes")]
 public sealed class NotesController(INoteRepository repository, TimeProvider timeProvider) : ControllerBase
@@ -23,12 +27,12 @@ public sealed class NotesController(INoteRepository repository, TimeProvider tim
                 new UserId(request.OwnerId),
                 request.Title,
                 request.Content,
-                request.Visibility,
+                NoteContractMapper.ToDomain(request.Visibility),
                 request.TeamId is null ? null : new TeamId(request.TeamId.Value),
                 timeProvider.GetUtcNow());
 
             await repository.AddAsync(note, cancellationToken);
-            return CreatedAtAction(nameof(Get), new { noteId = note.Id.Value }, ToResponse(note));
+            return CreatedAtAction(nameof(Get), new { noteId = note.Id.Value }, NoteContractMapper.ToContract(note));
         }
         catch (ArgumentException exception)
         {
@@ -48,7 +52,7 @@ public sealed class NotesController(INoteRepository repository, TimeProvider tim
         {
             var accessibleNotes = (await repository.ListAsync(cancellationToken))
                 .Where(note => note.CanBeViewedBy(new UserId(userId), CreateTeamIds(teamIds)))
-                .Select(ToResponse)
+                .Select(NoteContractMapper.ToContract)
                 .ToArray();
 
             return Ok(accessibleNotes);
@@ -77,7 +81,7 @@ public sealed class NotesController(INoteRepository repository, TimeProvider tim
                 return NotFound();
             }
 
-            return Ok(ToResponse(note));
+            return Ok(NoteContractMapper.ToContract(note));
         }
         catch (ArgumentException exception)
         {
@@ -112,12 +116,12 @@ public sealed class NotesController(INoteRepository repository, TimeProvider tim
             note.Update(
                 request.Title,
                 request.Content,
-                request.Visibility,
+                NoteContractMapper.ToDomain(request.Visibility),
                 request.TeamId is null ? null : new TeamId(request.TeamId.Value),
                 timeProvider.GetUtcNow());
             await repository.UpdateAsync(note, cancellationToken);
 
-            return Ok(ToResponse(note));
+            return Ok(NoteContractMapper.ToContract(note));
         }
         catch (ArgumentException exception)
         {
@@ -159,15 +163,4 @@ public sealed class NotesController(INoteRepository repository, TimeProvider tim
 
     private static HashSet<TeamId> CreateTeamIds(IEnumerable<int>? values) =>
         values?.Select(value => new TeamId(value)).ToHashSet() ?? [];
-
-    private static NoteResponse ToResponse(Note note) =>
-        new(
-            note.Id.Value,
-            note.OwnerId.Value,
-            note.Title,
-            note.Content,
-            note.Visibility,
-            note.TeamId?.Value,
-            note.CreatedAt,
-            note.UpdatedAt);
 }

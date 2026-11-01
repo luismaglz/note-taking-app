@@ -1,5 +1,8 @@
 namespace NTA.Core.ValueObjects;
 
+/// <summary>
+/// Represents a validated identifier for a user aggregate.
+/// </summary>
 public readonly record struct UserId
 {
     public int Value { get; }

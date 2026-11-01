@@ -1,6 +1,9 @@
-namespace NTA.Infrastructure.Sqlite;
+namespace NTA.Infrastructure.Sqlite.Models;
 
-internal sealed class NoteEntity
+/// <summary>
+/// Represents the SQLite persistence record for a note.
+/// </summary>
+internal sealed class SqliteNote
 {
     public Guid Id { get; set; }
 
