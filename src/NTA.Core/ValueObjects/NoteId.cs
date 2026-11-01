@@ -1,5 +1,8 @@
 namespace NTA.Core.ValueObjects;
 
+/// <summary>
+/// Represents a validated identifier for a note aggregate.
+/// </summary>
 public readonly record struct NoteId
 {
     public Guid Value { get; }

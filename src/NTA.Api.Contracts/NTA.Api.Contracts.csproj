@@ -6,8 +6,4 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\NTA.Domain\NTA.Domain.csproj"/>
-    </ItemGroup>
-
 </Project>

@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace NTA.Api.Users.Tests;
 
+/// <summary>
+/// Hosts the Users API with an isolated SQLite database for integration tests.
+/// </summary>
 public sealed class NotesApiFactory : WebApplicationFactory<Program>, IAsyncDisposable
 {
     private readonly string databasePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");

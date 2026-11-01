@@ -3,6 +3,9 @@ using NTA.Domain.Models;
 
 namespace NTA.Domain.Tests;
 
+/// <summary>
+/// Verifies note aggregate invariants and visibility behavior.
+/// </summary>
 public class NoteTests
 {
     [Fact]

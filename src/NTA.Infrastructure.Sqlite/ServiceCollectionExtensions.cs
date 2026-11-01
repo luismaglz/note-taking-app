@@ -4,6 +4,9 @@ using NTA.Domain.Interfaces;
 
 namespace NTA.Infrastructure.Sqlite;
 
+/// <summary>
+/// Provides dependency-injection registration for SQLite infrastructure services.
+/// </summary>
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddSqliteInfrastructure(
