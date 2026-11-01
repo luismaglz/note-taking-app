@@ -70,6 +70,48 @@ public sealed class NotesEndpointsTests(NotesApiFactory factory) : IClassFixture
     }
 
     [Fact]
+    public async Task List_ReturnsOwnedAndReadSharedNotesWithoutDuplicates()
+    {
+        using var owner = factory.CreateClient();
+        using var member = factory.CreateClient();
+        using var nonMember = factory.CreateClient();
+        await AuthenticateAsync(owner, 1);
+        await AuthenticateAsync(member, 2);
+        await AuthenticateAsync(nonMember, 4);
+
+        var ownedNote = await CreateNoteAsync(member, "Owned");
+        var directlySharedNote = await CreateNoteAsync(owner, "Direct");
+        var teamSharedNote = await CreateNoteAsync(owner, "Team");
+        var multiplySharedNote = await CreateNoteAsync(owner, "Multiple");
+        var inaccessibleNote = await CreateNoteAsync(owner, "Private");
+        await GrantAsync(owner, directlySharedNote.Id, AccessPrincipalKindContract.User, 2, NotePermissionContract.Read);
+        await GrantAsync(owner, teamSharedNote.Id, AccessPrincipalKindContract.Team, 1, NotePermissionContract.Read);
+        await GrantAsync(owner, multiplySharedNote.Id, AccessPrincipalKindContract.User, 2, NotePermissionContract.Read);
+        await GrantAsync(owner, multiplySharedNote.Id, AccessPrincipalKindContract.Team, 1, NotePermissionContract.Read);
+
+        var memberNotes = await ListNotesAsync(member);
+
+        Assert.Contains(memberNotes, note => note.Id == ownedNote.Id);
+        Assert.Contains(memberNotes, note => note.Id == directlySharedNote.Id);
+        Assert.Contains(memberNotes, note => note.Id == teamSharedNote.Id);
+        Assert.Equal(1, memberNotes.Count(note => note.Id == multiplySharedNote.Id));
+        Assert.DoesNotContain(memberNotes, note => note.Id == inaccessibleNote.Id);
+
+        var ownerNotes = await ListNotesAsync(owner);
+
+        Assert.Contains(ownerNotes, note => note.Id == directlySharedNote.Id);
+        Assert.Contains(ownerNotes, note => note.Id == teamSharedNote.Id);
+        Assert.Contains(ownerNotes, note => note.Id == multiplySharedNote.Id);
+        Assert.Contains(ownerNotes, note => note.Id == inaccessibleNote.Id);
+
+        var nonMemberNotes = await ListNotesAsync(nonMember);
+
+        Assert.DoesNotContain(nonMemberNotes, note => note.Id == directlySharedNote.Id);
+        Assert.DoesNotContain(nonMemberNotes, note => note.Id == teamSharedNote.Id);
+        Assert.DoesNotContain(nonMemberNotes, note => note.Id == multiplySharedNote.Id);
+    }
+
+    [Fact]
     public async Task AccessGrants_AuthorizeDirectUsersAndTeamMembersByPermission()
     {
         using var owner = factory.CreateClient();
@@ -141,6 +183,15 @@ public sealed class NotesEndpointsTests(NotesApiFactory factory) : IClassFixture
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return Assert.IsType<NoteResponse>(note);
+    }
+
+    private static async Task<NoteResponse[]> ListNotesAsync(HttpClient client)
+    {
+        var response = await client.GetAsync("/notes");
+        var notes = await response.Content.ReadFromJsonAsync<NoteResponse[]>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return Assert.IsType<NoteResponse[]>(notes);
     }
 
     private static async Task GrantAsync(
