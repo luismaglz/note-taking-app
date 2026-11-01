@@ -18,6 +18,8 @@ namespace NTA.Api.Users.Controllers;
 [Authorize(Roles = UserRoles.User)]
 public sealed class NotesController(
     INoteRepository repository,
+    INoteAccessPolicyRepository policyRepository,
+    ITeamRepository teamRepository,
     TimeProvider timeProvider,
     UserContext userContext) : ControllerBase
 {
@@ -34,11 +36,10 @@ public sealed class NotesController(
                 userContext.GetRequiredUserId(),
                 request.Title,
                 request.Content,
-                NoteContractMapper.ToDomain(request.Visibility),
-                request.TeamId is null ? null : new TeamId(request.TeamId.Value),
                 timeProvider.GetUtcNow());
 
             await repository.AddAsync(note, cancellationToken);
+            await policyRepository.AddAsync(NoteAccessPolicy.Create(note.Id), cancellationToken);
             return CreatedAtAction(nameof(Get), new { noteId = note.Id.Value }, NoteContractMapper.ToContract(note));
         }
         catch (ArgumentException exception)
@@ -54,10 +55,20 @@ public sealed class NotesController(
     {
         try
         {
-            var accessibleNotes = (await repository.ListAsync(cancellationToken))
-                .Where(note => note.CanBeViewedBy(userContext.GetRequiredUserId(), new HashSet<TeamId>()))
-                .Select(NoteContractMapper.ToContract)
-                .ToArray();
+            var userId = userContext.GetRequiredUserId();
+            var teamIds = (await teamRepository.ListByMemberAsync(userId, cancellationToken))
+                .Select(team => team.Id)
+                .ToHashSet();
+            var notes = await repository.ListAsync(cancellationToken);
+            var accessibleNotes = new List<NoteResponse>();
+
+            foreach (var note in notes)
+            {
+                if (await HasAccessAsync(note, userId, teamIds, NotePermission.Read, cancellationToken))
+                {
+                    accessibleNotes.Add(NoteContractMapper.ToContract(note));
+                }
+            }
 
             return Ok(accessibleNotes);
         }
@@ -75,8 +86,17 @@ public sealed class NotesController(
     {
         try
         {
+            var userId = userContext.GetRequiredUserId();
             var note = await repository.GetByIdAsync(new NoteId(noteId), cancellationToken);
-            if (note is null || !note.CanBeViewedBy(userContext.GetRequiredUserId(), new HashSet<TeamId>()))
+            if (note is null)
+            {
+                return NotFound();
+            }
+
+            var teamIds = (await teamRepository.ListByMemberAsync(userId, cancellationToken))
+                .Select(team => team.Id)
+                .ToHashSet();
+            if (!await HasAccessAsync(note, userId, teamIds, NotePermission.Read, cancellationToken))
             {
                 return NotFound();
             }
@@ -107,7 +127,11 @@ public sealed class NotesController(
                 return NotFound();
             }
 
-            if (note.OwnerId != userContext.GetRequiredUserId())
+            var userId = userContext.GetRequiredUserId();
+            var teamIds = (await teamRepository.ListByMemberAsync(userId, cancellationToken))
+                .Select(team => team.Id)
+                .ToHashSet();
+            if (!await HasAccessAsync(note, userId, teamIds, NotePermission.Write, cancellationToken))
             {
                 return StatusCode(StatusCodes.Status403Forbidden);
             }
@@ -115,8 +139,6 @@ public sealed class NotesController(
             note.Update(
                 request.Title,
                 request.Content,
-                NoteContractMapper.ToDomain(request.Visibility),
-                request.TeamId is null ? null : new TeamId(request.TeamId.Value),
                 timeProvider.GetUtcNow());
             await repository.UpdateAsync(note, cancellationToken);
 
@@ -143,11 +165,16 @@ public sealed class NotesController(
                 return NotFound();
             }
 
-            if (note.OwnerId != userContext.GetRequiredUserId())
+            var userId = userContext.GetRequiredUserId();
+            var teamIds = (await teamRepository.ListByMemberAsync(userId, cancellationToken))
+                .Select(team => team.Id)
+                .ToHashSet();
+            if (!await HasAccessAsync(note, userId, teamIds, NotePermission.Delete, cancellationToken))
             {
                 return StatusCode(StatusCodes.Status403Forbidden);
             }
 
+            await policyRepository.DeleteAsync(note.Id, cancellationToken);
             await repository.DeleteAsync(note.Id, cancellationToken);
             return NoContent();
         }
@@ -155,5 +182,21 @@ public sealed class NotesController(
         {
             return BadRequest(new { error = exception.Message });
         }
+    }
+
+    private async Task<bool> HasAccessAsync(
+        Note note,
+        UserId userId,
+        IReadOnlySet<TeamId> teamIds,
+        NotePermission permission,
+        CancellationToken cancellationToken)
+    {
+        if (note.OwnerId == userId)
+        {
+            return true;
+        }
+
+        var policy = await policyRepository.GetByNoteIdAsync(note.Id, cancellationToken);
+        return policy?.HasPermission(userId, teamIds, permission) ?? false;
     }
 }

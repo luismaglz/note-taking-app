@@ -5,6 +5,4 @@ namespace NTA.Api.Contracts;
 /// </summary>
 public sealed record CreateNoteRequest(
     string Title,
-    string Content,
-    NoteVisibilityContract Visibility,
-    int? TeamId);
+    string Content);

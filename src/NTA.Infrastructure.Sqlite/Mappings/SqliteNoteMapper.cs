@@ -15,8 +15,6 @@ internal static class SqliteNoteMapper
         OwnerId = note.OwnerId.Value,
         Title = note.Title,
         Content = note.Content,
-        Visibility = note.Visibility.ToString(),
-        TeamId = note.TeamId?.Value,
         CreatedAtUnixMilliseconds = note.CreatedAt.ToUnixTimeMilliseconds(),
         UpdatedAtUnixMilliseconds = note.UpdatedAt.ToUnixTimeMilliseconds()
     };
@@ -25,8 +23,6 @@ internal static class SqliteNoteMapper
     {
         persistence.Title = note.Title;
         persistence.Content = note.Content;
-        persistence.Visibility = note.Visibility.ToString();
-        persistence.TeamId = note.TeamId?.Value;
         persistence.UpdatedAtUnixMilliseconds = note.UpdatedAt.ToUnixTimeMilliseconds();
     }
 
@@ -36,8 +32,6 @@ internal static class SqliteNoteMapper
             new UserId(persistence.OwnerId),
             persistence.Title,
             persistence.Content,
-            Enum.Parse<NoteVisibility>(persistence.Visibility),
-            persistence.TeamId is null ? null : new TeamId(persistence.TeamId.Value),
             DateTimeOffset.FromUnixTimeMilliseconds(persistence.CreatedAtUnixMilliseconds),
             DateTimeOffset.FromUnixTimeMilliseconds(persistence.UpdatedAtUnixMilliseconds));
 }

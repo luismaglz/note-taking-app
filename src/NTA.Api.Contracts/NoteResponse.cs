@@ -8,7 +8,5 @@ public sealed record NoteResponse(
     int OwnerId,
     string Title,
     string Content,
-    NoteVisibilityContract Visibility,
-    int? TeamId,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);

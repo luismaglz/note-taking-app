@@ -6,7 +6,7 @@ using NTA.Core.ValueObjects;
 namespace NTA.Domain.Models;
 
 /// <summary>
-/// Represents the note aggregate and enforces its ownership and sharing invariants.
+/// Represents the note aggregate and enforces its content and lifecycle invariants.
 /// </summary>
 public sealed class Note
 {
@@ -15,8 +15,6 @@ public sealed class Note
         UserId ownerId,
         string title,
         string content,
-        NoteVisibility visibility,
-        TeamId? teamId,
         DateTimeOffset createdAt,
         DateTimeOffset updatedAt)
     {
@@ -29,8 +27,6 @@ public sealed class Note
         OwnerId = ownerId;
         Title = ValidateTitle(title);
         Content = content ?? throw new ArgumentNullException(nameof(content));
-        Visibility = visibility;
-        TeamId = ValidateTeamScope(visibility, teamId);
         CreatedAt = createdAt;
         UpdatedAt = updatedAt;
     }
@@ -43,10 +39,6 @@ public sealed class Note
 
     public string Content { get; private set; }
 
-    public NoteVisibility Visibility { get; private set; }
-
-    public TeamId? TeamId { get; private set; }
-
     public DateTimeOffset CreatedAt { get; }
 
     public DateTimeOffset UpdatedAt { get; private set; }
@@ -55,21 +47,12 @@ public sealed class Note
         UserId ownerId,
         string title,
         string content,
-        NoteVisibility visibility,
-        TeamId? teamId,
         DateTimeOffset now) =>
-        new(NoteId.New(), ownerId, title, content, visibility, teamId, now, now);
-
-    public bool CanBeViewedBy(UserId userId, IReadOnlySet<TeamId> teamIds) =>
-        OwnerId == userId ||
-        Visibility == NoteVisibility.Public ||
-        Visibility == NoteVisibility.Team && TeamId is not null && teamIds.Contains(TeamId.Value);
+        new(NoteId.New(), ownerId, title, content, now, now);
 
     public void Update(
         string title,
         string content,
-        NoteVisibility visibility,
-        TeamId? teamId,
         DateTimeOffset updatedAt)
     {
         if (updatedAt < UpdatedAt)
@@ -79,8 +62,6 @@ public sealed class Note
 
         Title = ValidateTitle(title);
         Content = content ?? throw new ArgumentNullException(nameof(content));
-        Visibility = visibility;
-        TeamId = ValidateTeamScope(visibility, teamId);
         UpdatedAt = updatedAt;
     }
 
@@ -93,14 +74,4 @@ public sealed class Note
 
         return title.Trim();
     }
-
-    private static TeamId? ValidateTeamScope(NoteVisibility visibility, TeamId? teamId) => visibility switch
-    {
-        NoteVisibility.Team when teamId is null => throw new ArgumentException("Team notes require a team id.", nameof(teamId)),
-        NoteVisibility.Team => teamId,
-        NoteVisibility.Private or NoteVisibility.Public when teamId is not null =>
-            throw new ArgumentException("Only team notes can have a team id.", nameof(teamId)),
-        NoteVisibility.Private or NoteVisibility.Public => null,
-        _ => throw new ArgumentOutOfRangeException(nameof(visibility), visibility, "Unsupported note visibility.")
-    };
 }
