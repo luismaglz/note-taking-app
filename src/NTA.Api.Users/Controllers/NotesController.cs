@@ -5,6 +5,7 @@ using NTA.Api.Users.Mappings;
 using NTA.Core.Authentication;
 using NTA.Core.Context;
 using NTA.Core.ValueObjects;
+using NTA.Domain.Exceptions;
 using NTA.Domain.Interfaces;
 using NTA.Domain.Models;
 
@@ -40,6 +41,7 @@ public sealed class NotesController(
 
             await repository.AddAsync(note, cancellationToken);
             await policyRepository.AddAsync(NoteAccessPolicy.Create(note.Id), cancellationToken);
+            SetEtag(note.Revision);
             return CreatedAtAction(nameof(Get), new { noteId = note.Id.Value }, NoteContractMapper.ToContract(note));
         }
         catch (ArgumentException exception)
@@ -88,6 +90,7 @@ public sealed class NotesController(
                 return NotFound();
             }
 
+            SetEtag(note.Revision);
             return Ok(NoteContractMapper.ToContract(note));
         }
         catch (ArgumentException exception)
@@ -101,6 +104,8 @@ public sealed class NotesController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status412PreconditionFailed)]
+    [ProducesResponseType(StatusCodes.Status428PreconditionRequired)]
     public async Task<ActionResult<NoteResponse>> Update(
         Guid noteId,
         UpdateNoteRequest request,
@@ -123,13 +128,23 @@ public sealed class NotesController(
                 return StatusCode(StatusCodes.Status403Forbidden);
             }
 
+            if (!TryGetExpectedRevision(out var expectedRevision))
+            {
+                return PreconditionError();
+            }
+
             note.Update(
                 request.Title,
                 request.Content,
                 timeProvider.GetUtcNow());
-            await repository.UpdateAsync(note, cancellationToken);
+            var nextRevision = await repository.UpdateAsync(note, expectedRevision, cancellationToken);
 
+            SetEtag(nextRevision);
             return Ok(NoteContractMapper.ToContract(note));
+        }
+        catch (NoteConcurrencyException)
+        {
+            return StatusCode(StatusCodes.Status412PreconditionFailed, new { error = "The note has been modified." });
         }
         catch (ArgumentException exception)
         {
@@ -142,6 +157,8 @@ public sealed class NotesController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status412PreconditionFailed)]
+    [ProducesResponseType(StatusCodes.Status428PreconditionRequired)]
     public async Task<IActionResult> Delete(Guid noteId, CancellationToken cancellationToken)
     {
         try
@@ -161,9 +178,18 @@ public sealed class NotesController(
                 return StatusCode(StatusCodes.Status403Forbidden);
             }
 
+            if (!TryGetExpectedRevision(out var expectedRevision))
+            {
+                return PreconditionError();
+            }
+
+            await repository.DeleteAsync(note.Id, expectedRevision, cancellationToken);
             await policyRepository.DeleteAsync(note.Id, cancellationToken);
-            await repository.DeleteAsync(note.Id, cancellationToken);
             return NoContent();
+        }
+        catch (NoteConcurrencyException)
+        {
+            return StatusCode(StatusCodes.Status412PreconditionFailed, new { error = "The note has been modified." });
         }
         catch (ArgumentException exception)
         {
@@ -186,4 +212,13 @@ public sealed class NotesController(
         var policy = await policyRepository.GetByNoteIdAsync(note.Id, cancellationToken);
         return policy?.HasPermission(userId, teamIds, permission) ?? false;
     }
+
+    private bool TryGetExpectedRevision(out long expectedRevision) =>
+        NoteEtag.TryParseExpectedRevision(Request.Headers.IfMatch, out expectedRevision);
+
+    private ObjectResult PreconditionError() =>
+        Request.Headers.ContainsKey("If-Match")
+            ? BadRequest(new { error = "The If-Match header is malformed." })
+            : StatusCode(StatusCodes.Status428PreconditionRequired, new { error = "An If-Match header is required." });
+    private void SetEtag(long revision) => Response.Headers.ETag = NoteEtag.Format(revision);
 }

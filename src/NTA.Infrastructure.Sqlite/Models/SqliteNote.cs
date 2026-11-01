@@ -16,4 +16,6 @@ internal sealed class SqliteNote
     public long CreatedAtUnixMilliseconds { get; set; }
 
     public long UpdatedAtUnixMilliseconds { get; set; }
+
+    public long Revision { get; set; }
 }
