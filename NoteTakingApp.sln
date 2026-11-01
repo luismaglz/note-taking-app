@@ -33,6 +33,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTA.Domain.Tests", "tests\N
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTA.Infrastructure.Sqlite.Tests", "tests\NTA.Infrastructure.Sqlite.Tests\NTA.Infrastructure.Sqlite.Tests.csproj", "{96D9C515-7A08-4631-8C05-C9B048481E39}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTA.Core", "src\NTA.Core\NTA.Core.csproj", "{CE597E64-F9D2-404E-9D55-75B6D9D7F810}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -48,6 +50,7 @@ Global
 		{A113A19D-2807-436D-AA5E-0ACE6B97513E} = {1664AC2A-852C-4549-8307-B2D50A43E64D}
 		{6A8350E4-8D01-44E3-87B5-50065DD3AE8D} = {1664AC2A-852C-4549-8307-B2D50A43E64D}
 		{96D9C515-7A08-4631-8C05-C9B048481E39} = {1664AC2A-852C-4549-8307-B2D50A43E64D}
+		{CE597E64-F9D2-404E-9D55-75B6D9D7F810} = {A67FC207-28AC-4BBC-AB0D-E3C9882F7B17}
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{4E0A15C3-828D-4202-B0DD-177CACF66566}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
@@ -86,5 +89,9 @@ Global
 		{96D9C515-7A08-4631-8C05-C9B048481E39}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{96D9C515-7A08-4631-8C05-C9B048481E39}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{96D9C515-7A08-4631-8C05-C9B048481E39}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CE597E64-F9D2-404E-9D55-75B6D9D7F810}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CE597E64-F9D2-404E-9D55-75B6D9D7F810}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CE597E64-F9D2-404E-9D55-75B6D9D7F810}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CE597E64-F9D2-404E-9D55-75B6D9D7F810}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
