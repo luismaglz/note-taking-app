@@ -1,7 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi"/>
+        <PackageReference Include="NSwag.AspNetCore"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\NTA.Api.Contracts\NTA.Api.Contracts.csproj"/>
+        <ProjectReference Include="..\NTA.Core\NTA.Core.csproj"/>
+        <ProjectReference Include="..\NTA.Domain\NTA.Domain.csproj"/>
+        <ProjectReference Include="..\NTA.Infrastructure.Sqlite\NTA.Infrastructure.Sqlite.csproj"/>
     </ItemGroup>
 
 </Project>
