@@ -8,6 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing"/>
         <PackageReference Include="coverlet.collector"/>
         <PackageReference Include="Microsoft.NET.Test.Sdk"/>
         <PackageReference Include="xunit"/>
@@ -16,6 +17,11 @@
 
     <ItemGroup>
         <Using Include="Xunit"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\NTA.Api.Contracts\NTA.Api.Contracts.csproj"/>
+        <ProjectReference Include="..\..\src\NTA.Api.Management\NTA.Api.Management.csproj"/>
     </ItemGroup>
 
 </Project>
