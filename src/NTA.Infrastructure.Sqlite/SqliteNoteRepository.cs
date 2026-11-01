@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using NTA.Core.ValueObjects;
+using NTA.Domain.Exceptions;
 using NTA.Domain.Interfaces;
 using NTA.Domain.Models;
 using NTA.Infrastructure.Sqlite.Mappings;
@@ -73,31 +74,46 @@ public sealed class SqliteNoteRepository(NoteDbContext dbContext) : INoteReposit
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task UpdateAsync(Note note, CancellationToken cancellationToken = default)
+    public async Task<long> UpdateAsync(
+        Note note,
+        long expectedRevision,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(note);
 
-        var entity = await dbContext.Notes
-            .SingleOrDefaultAsync(existingNote => existingNote.Id == note.Id.Value, cancellationToken)
-            ?? throw new InvalidOperationException($"Note '{note.Id.Value}' does not exist.");
+        var nextRevision = checked(expectedRevision + 1);
+        var updatedCount = await dbContext.Notes
+            .Where(existingNote =>
+                existingNote.Id == note.Id.Value &&
+                existingNote.Revision == expectedRevision)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(entity => entity.Title, note.Title)
+                    .SetProperty(entity => entity.Content, note.Content)
+                    .SetProperty(entity => entity.UpdatedAtUnixMilliseconds, note.UpdatedAt.ToUnixTimeMilliseconds())
+                    .SetProperty(entity => entity.Revision, nextRevision),
+                cancellationToken);
 
-        SqliteNoteMapper.Apply(note, entity);
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-    }
-
-    public async Task<bool> DeleteAsync(NoteId id, CancellationToken cancellationToken = default)
-    {
-        var entity = await dbContext.Notes
-            .SingleOrDefaultAsync(note => note.Id == id.Value, cancellationToken);
-
-        if (entity is null)
+        if (updatedCount != 1)
         {
-            return false;
+            throw new NoteConcurrencyException(note.Id, expectedRevision);
         }
 
-        dbContext.Notes.Remove(entity);
-        await dbContext.SaveChangesAsync(cancellationToken);
-        return true;
+        return nextRevision;
+    }
+
+    public async Task DeleteAsync(
+        NoteId id,
+        long expectedRevision,
+        CancellationToken cancellationToken = default)
+    {
+        var deletedCount = await dbContext.Notes
+            .Where(note => note.Id == id.Value && note.Revision == expectedRevision)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        if (deletedCount != 1)
+        {
+            throw new NoteConcurrencyException(id, expectedRevision);
+        }
     }
 }

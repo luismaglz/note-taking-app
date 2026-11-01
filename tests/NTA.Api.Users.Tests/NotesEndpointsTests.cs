@@ -16,57 +16,97 @@ public sealed class NotesEndpointsTests(NotesApiFactory factory) : IClassFixture
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
     [Fact]
-    public async Task NoteCrud_CreatesReadsUpdatesAndDeletesAnOwnedNote()
+    public async Task CreateAndGet_IssueTheInitialStrongEtag()
     {
-        using var client = factory.CreateClient();
-        var unauthorizedResponse = await client.GetAsync("/notes");
+        using var unauthorizedClient = factory.CreateClient();
+        var unauthorizedResponse = await unauthorizedClient.GetAsync("/notes");
+        using var client = await CreateAuthenticatedClientAsync();
+
+        var (created, etag) = await CreateNoteAsync(client);
+        var getResponse = await client.GetAsync($"/notes/{created.Id}");
 
         Assert.Equal(HttpStatusCode.Unauthorized, unauthorizedResponse.StatusCode);
+        Assert.Equal("\"1\"", etag);
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        Assert.Equal(etag, getResponse.Headers.ETag?.Tag);
+        Assert.False(getResponse.Headers.ETag?.IsWeak ?? true);
+    }
 
-        var authenticationResponse = await client.PostAsync("/auth/7", null);
-        var authentication = await authenticationResponse.Content.ReadFromJsonAsync<AuthenticationResponse>();
+    [Fact]
+    public async Task Update_WithCurrentEtag_ChangesTheNoteAndAdvancesItsEtag()
+    {
+        using var client = await CreateAuthenticatedClientAsync();
+        var (created, etag) = await CreateNoteAsync(client);
 
-        Assert.Equal(HttpStatusCode.OK, authenticationResponse.StatusCode);
-        Assert.NotNull(authentication);
-
-        client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", authentication.AccessToken);
-
-        var createResponse = await client.PostAsJsonAsync(
-            "/notes",
-            new CreateNoteRequest("Draft", "Initial content"));
-
-        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
-
-        var created = await createResponse.Content.ReadFromJsonAsync<NoteResponse>(JsonOptions);
-        Assert.NotNull(created);
-
-        var listResponse = await client.GetAsync("/notes");
-        var notes = await listResponse.Content.ReadFromJsonAsync<NoteResponse[]>(JsonOptions);
-
-        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
-        Assert.Contains(notes!, note => note.Id == created.Id);
-
-        var readResponse = await client.GetAsync($"/notes/{created.Id}");
-
-        Assert.Equal(HttpStatusCode.OK, readResponse.StatusCode);
-
-        var updateResponse = await client.PutAsJsonAsync(
-            $"/notes/{created.Id}",
-            new UpdateNoteRequest("Published", "Updated content"));
+        var updateResponse = await client.SendAsync(CreateUpdateRequest(
+            created.Id,
+            new UpdateNoteRequest("Published", "Updated content"),
+            etag));
+        var updated = await updateResponse.Content.ReadFromJsonAsync<NoteResponse>(JsonOptions);
 
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
-
-        var updated = await updateResponse.Content.ReadFromJsonAsync<NoteResponse>(JsonOptions);
         Assert.NotNull(updated);
         Assert.Equal("Published", updated.Title);
-        var deleteResponse = await client.DeleteAsync($"/notes/{created.Id}");
+        Assert.Equal("\"2\"", updateResponse.Headers.ETag?.Tag);
+    }
 
+    [Fact]
+    public async Task Update_WithStaleEtag_IsRejectedAndCanBeRetriedWithTheCurrentEtag()
+    {
+        using var client = await CreateAuthenticatedClientAsync();
+        var (created, initialEtag) = await CreateNoteAsync(client);
+
+        var firstUpdate = await client.SendAsync(CreateUpdateRequest(
+            created.Id,
+            new UpdateNoteRequest("First update", "Updated content"),
+            initialEtag));
+        var currentEtag = firstUpdate.Headers.ETag?.Tag;
+
+        var staleUpdate = await client.SendAsync(CreateUpdateRequest(
+            created.Id,
+            new UpdateNoteRequest("Stale update", "Updated content"),
+            initialEtag));
+
+        var retryUpdate = await client.SendAsync(CreateUpdateRequest(
+            created.Id,
+            new UpdateNoteRequest("Retried update", "Updated content"),
+            currentEtag));
+
+        Assert.Equal(HttpStatusCode.OK, firstUpdate.StatusCode);
+        Assert.Equal("\"2\"", currentEtag);
+        Assert.Equal(HttpStatusCode.PreconditionFailed, staleUpdate.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, retryUpdate.StatusCode);
+        Assert.Equal("\"3\"", retryUpdate.Headers.ETag?.Tag);
+    }
+
+    [Fact]
+    public async Task Delete_RequiresAValidCurrentEtag()
+    {
+        using var client = await CreateAuthenticatedClientAsync();
+        var (created, initialEtag) = await CreateNoteAsync(client);
+
+        var absentPrecondition = await client.DeleteAsync($"/notes/{created.Id}");
+
+        using var malformedRequest = new HttpRequestMessage(HttpMethod.Delete, $"/notes/{created.Id}");
+        malformedRequest.Headers.TryAddWithoutValidation("If-Match", "W/\"1\"");
+        var malformedPrecondition = await client.SendAsync(malformedRequest);
+
+        var updateResponse = await client.SendAsync(CreateUpdateRequest(
+            created.Id,
+            new UpdateNoteRequest("Changed", "Updated content"),
+            initialEtag));
+
+        using var staleDeleteRequest = CreateDeleteRequest(created.Id, initialEtag);
+        var staleDelete = await client.SendAsync(staleDeleteRequest);
+
+        using var deleteRequest = CreateDeleteRequest(created.Id, updateResponse.Headers.ETag?.Tag);
+        var deleteResponse = await client.SendAsync(deleteRequest);
+
+        Assert.Equal(HttpStatusCode.PreconditionRequired, absentPrecondition.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, malformedPrecondition.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.PreconditionFailed, staleDelete.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
-
-        var afterDeleteResponse = await client.GetAsync($"/notes/{created.Id}");
-
-        Assert.Equal(HttpStatusCode.NotFound, afterDeleteResponse.StatusCode);
     }
 
     [Fact]
@@ -84,31 +124,31 @@ public sealed class NotesEndpointsTests(NotesApiFactory factory) : IClassFixture
         var teamSharedNote = await CreateNoteAsync(owner, "Team");
         var multiplySharedNote = await CreateNoteAsync(owner, "Multiple");
         var inaccessibleNote = await CreateNoteAsync(owner, "Private");
-        await GrantAsync(owner, directlySharedNote.Id, AccessPrincipalKindContract.User, 2, NotePermissionContract.Read);
-        await GrantAsync(owner, teamSharedNote.Id, AccessPrincipalKindContract.Team, 1, NotePermissionContract.Read);
-        await GrantAsync(owner, multiplySharedNote.Id, AccessPrincipalKindContract.User, 2, NotePermissionContract.Read);
-        await GrantAsync(owner, multiplySharedNote.Id, AccessPrincipalKindContract.Team, 1, NotePermissionContract.Read);
+        await GrantAsync(owner, directlySharedNote.Note.Id, AccessPrincipalKindContract.User, 2, NotePermissionContract.Read);
+        await GrantAsync(owner, teamSharedNote.Note.Id, AccessPrincipalKindContract.Team, 1, NotePermissionContract.Read);
+        await GrantAsync(owner, multiplySharedNote.Note.Id, AccessPrincipalKindContract.User, 2, NotePermissionContract.Read);
+        await GrantAsync(owner, multiplySharedNote.Note.Id, AccessPrincipalKindContract.Team, 1, NotePermissionContract.Read);
 
         var memberNotes = await ListNotesAsync(member);
 
-        Assert.Contains(memberNotes, note => note.Id == ownedNote.Id);
-        Assert.Contains(memberNotes, note => note.Id == directlySharedNote.Id);
-        Assert.Contains(memberNotes, note => note.Id == teamSharedNote.Id);
-        Assert.Equal(1, memberNotes.Count(note => note.Id == multiplySharedNote.Id));
-        Assert.DoesNotContain(memberNotes, note => note.Id == inaccessibleNote.Id);
+        Assert.Contains(memberNotes, note => note.Id == ownedNote.Note.Id);
+        Assert.Contains(memberNotes, note => note.Id == directlySharedNote.Note.Id);
+        Assert.Contains(memberNotes, note => note.Id == teamSharedNote.Note.Id);
+        Assert.Equal(1, memberNotes.Count(note => note.Id == multiplySharedNote.Note.Id));
+        Assert.DoesNotContain(memberNotes, note => note.Id == inaccessibleNote.Note.Id);
 
         var ownerNotes = await ListNotesAsync(owner);
 
-        Assert.Contains(ownerNotes, note => note.Id == directlySharedNote.Id);
-        Assert.Contains(ownerNotes, note => note.Id == teamSharedNote.Id);
-        Assert.Contains(ownerNotes, note => note.Id == multiplySharedNote.Id);
-        Assert.Contains(ownerNotes, note => note.Id == inaccessibleNote.Id);
+        Assert.Contains(ownerNotes, note => note.Id == directlySharedNote.Note.Id);
+        Assert.Contains(ownerNotes, note => note.Id == teamSharedNote.Note.Id);
+        Assert.Contains(ownerNotes, note => note.Id == multiplySharedNote.Note.Id);
+        Assert.Contains(ownerNotes, note => note.Id == inaccessibleNote.Note.Id);
 
         var nonMemberNotes = await ListNotesAsync(nonMember);
 
-        Assert.DoesNotContain(nonMemberNotes, note => note.Id == directlySharedNote.Id);
-        Assert.DoesNotContain(nonMemberNotes, note => note.Id == teamSharedNote.Id);
-        Assert.DoesNotContain(nonMemberNotes, note => note.Id == multiplySharedNote.Id);
+        Assert.DoesNotContain(nonMemberNotes, note => note.Id == directlySharedNote.Note.Id);
+        Assert.DoesNotContain(nonMemberNotes, note => note.Id == teamSharedNote.Note.Id);
+        Assert.DoesNotContain(nonMemberNotes, note => note.Id == multiplySharedNote.Note.Id);
     }
 
     [Fact]
@@ -121,7 +161,7 @@ public sealed class NotesEndpointsTests(NotesApiFactory factory) : IClassFixture
         await AuthenticateAsync(directUser, 2);
         await AuthenticateAsync(nonMember, 4);
 
-        var directNote = await CreateNoteAsync(owner, "Direct");
+        var (directNote, directNoteEtag) = await CreateNoteAsync(owner, "Direct");
 
         Assert.Equal(HttpStatusCode.NotFound, (await directUser.GetAsync($"/notes/{directNote.Id}")).StatusCode);
         Assert.Equal(
@@ -135,14 +175,17 @@ public sealed class NotesEndpointsTests(NotesApiFactory factory) : IClassFixture
             (await directUser.PutAsJsonAsync($"/notes/{directNote.Id}", new UpdateNoteRequest("Denied", "Denied"))).StatusCode);
 
         await GrantAsync(owner, directNote.Id, AccessPrincipalKindContract.User, 2, NotePermissionContract.Write);
-        Assert.Equal(
-            HttpStatusCode.OK,
-            (await directUser.PutAsJsonAsync($"/notes/{directNote.Id}", new UpdateNoteRequest("Permitted", "Updated"))).StatusCode);
+        var directUpdate = await directUser.SendAsync(CreateUpdateRequest(
+            directNote.Id,
+            new UpdateNoteRequest("Permitted", "Updated"),
+            directNoteEtag));
+        Assert.Equal(HttpStatusCode.OK, directUpdate.StatusCode);
 
         await GrantAsync(owner, directNote.Id, AccessPrincipalKindContract.User, 2, NotePermissionContract.Delete);
-        Assert.Equal(HttpStatusCode.NoContent, (await directUser.DeleteAsync($"/notes/{directNote.Id}")).StatusCode);
+        using var directDeleteRequest = CreateDeleteRequest(directNote.Id, directUpdate.Headers.ETag?.Tag);
+        Assert.Equal(HttpStatusCode.NoContent, (await directUser.SendAsync(directDeleteRequest)).StatusCode);
 
-        var teamNote = await CreateNoteAsync(owner, "Team");
+        var (teamNote, _) = await CreateNoteAsync(owner, "Team");
         await GrantAsync(owner, teamNote.Id, AccessPrincipalKindContract.Team, 1, NotePermissionContract.Read);
 
         Assert.Equal(HttpStatusCode.OK, (await directUser.GetAsync($"/notes/{teamNote.Id}")).StatusCode);
@@ -165,6 +208,47 @@ public sealed class NotesEndpointsTests(NotesApiFactory factory) : IClassFixture
                     NotePermissionContract.Read))).StatusCode);
     }
 
+    private static HttpRequestMessage CreateDeleteRequest(Guid noteId, string? etag)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Delete, $"/notes/{noteId}");
+        request.Headers.TryAddWithoutValidation("If-Match", etag);
+        return request;
+    }
+
+    private static HttpRequestMessage CreateUpdateRequest(
+        Guid noteId,
+        UpdateNoteRequest update,
+        string? etag)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Put, $"/notes/{noteId}")
+        {
+            Content = JsonContent.Create(update)
+        };
+        request.Headers.TryAddWithoutValidation("If-Match", etag);
+        return request;
+    }
+
+    private static async Task<(NoteResponse Note, string Etag)> CreateNoteAsync(
+        HttpClient client,
+        string title = "Draft")
+    {
+        var createResponse = await client.PostAsJsonAsync("/notes", new CreateNoteRequest(title, "Initial content"));
+        var created = await createResponse.Content.ReadFromJsonAsync<NoteResponse>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.NotNull(created);
+        Assert.NotNull(createResponse.Headers.ETag);
+
+        return (created, createResponse.Headers.ETag.Tag);
+    }
+
+    private async Task<HttpClient> CreateAuthenticatedClientAsync()
+    {
+        var client = factory.CreateClient();
+        await AuthenticateAsync(client, 7);
+        return client;
+    }
+
     private static async Task AuthenticateAsync(HttpClient client, int userId)
     {
         var response = await client.PostAsync($"/auth/{userId}", null);
@@ -176,15 +260,6 @@ public sealed class NotesEndpointsTests(NotesApiFactory factory) : IClassFixture
             new AuthenticationHeaderValue("Bearer", authentication.AccessToken);
     }
 
-    private static async Task<NoteResponse> CreateNoteAsync(HttpClient client, string title)
-    {
-        var response = await client.PostAsJsonAsync("/notes", new CreateNoteRequest(title, "Content"));
-        var note = await response.Content.ReadFromJsonAsync<NoteResponse>(JsonOptions);
-
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        return Assert.IsType<NoteResponse>(note);
-    }
-
     private static async Task<NoteResponse[]> ListNotesAsync(HttpClient client)
     {
         var response = await client.GetAsync("/notes");
@@ -193,7 +268,6 @@ public sealed class NotesEndpointsTests(NotesApiFactory factory) : IClassFixture
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return Assert.IsType<NoteResponse[]>(notes);
     }
-
     private static async Task GrantAsync(
         HttpClient client,
         Guid noteId,

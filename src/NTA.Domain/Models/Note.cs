@@ -16,11 +16,17 @@ public sealed class Note
         string title,
         string content,
         DateTimeOffset createdAt,
-        DateTimeOffset updatedAt)
+        DateTimeOffset updatedAt,
+        long revision)
     {
         if (createdAt > updatedAt)
         {
             throw new ArgumentOutOfRangeException(nameof(createdAt), "Created time cannot be after updated time.");
+        }
+
+        if (revision < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(revision), "Revision must be greater than zero.");
         }
 
         Id = id;
@@ -29,6 +35,7 @@ public sealed class Note
         Content = content ?? throw new ArgumentNullException(nameof(content));
         CreatedAt = createdAt;
         UpdatedAt = updatedAt;
+        Revision = revision;
     }
 
     public NoteId Id { get; }
@@ -43,12 +50,14 @@ public sealed class Note
 
     public DateTimeOffset UpdatedAt { get; private set; }
 
+    public long Revision { get; }
+
     public static Note Create(
         UserId ownerId,
         string title,
         string content,
         DateTimeOffset now) =>
-        new(NoteId.New(), ownerId, title, content, now, now);
+        new(NoteId.New(), ownerId, title, content, now, now, revision: 1);
 
     public void Update(
         string title,
