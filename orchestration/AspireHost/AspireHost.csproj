@@ -6,6 +6,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\..\src\NTA.Api.Management\NTA.Api.Management.csproj"/>
         <ProjectReference Include="..\..\src\NTA.Api.Users\NTA.Api.Users.csproj"/>
     </ItemGroup>
 

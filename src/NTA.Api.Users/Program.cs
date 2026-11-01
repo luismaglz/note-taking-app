@@ -1,4 +1,5 @@
 using NTA.Infrastructure.Sqlite;
+using NTA.Core.Authentication;
 using NSwag;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +16,7 @@ builder.Services.AddOpenApiDocument(options =>
 });
 builder.Services.AddSqliteInfrastructure(
     builder.Configuration.GetConnectionString("Notes") ?? "Data Source=note-taking-app.db");
+builder.Services.AddCoreAuthentication(builder.Configuration);
 builder.Services.AddSingleton(TimeProvider.System);
 
 var app = builder.Build();
@@ -22,6 +24,9 @@ var app = builder.Build();
 app.UseHttpsRedirection();
 app.UseOpenApi();
 app.UseSwaggerUi(options => options.DocumentTitle = "Note Taking App Users API");
+app.UseAuthentication();
+app.UseUserContext();
+app.UseAuthorization();
 
 app.MapGet("/", () => Results.Redirect("/swagger"));
 app.MapControllers();

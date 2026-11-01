@@ -1,6 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NTA.Api.Contracts;
 using NTA.Api.Users.Mappings;
+using NTA.Core.Authentication;
+using NTA.Core.Context;
 using NTA.Core.ValueObjects;
 using NTA.Domain.Interfaces;
 using NTA.Domain.Models;
@@ -12,7 +15,11 @@ namespace NTA.Api.Users.Controllers;
 /// </summary>
 [ApiController]
 [Route("notes")]
-public sealed class NotesController(INoteRepository repository, TimeProvider timeProvider) : ControllerBase
+[Authorize(Roles = UserRoles.User)]
+public sealed class NotesController(
+    INoteRepository repository,
+    TimeProvider timeProvider,
+    UserContext userContext) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType<NoteResponse>(StatusCodes.Status201Created)]
@@ -24,7 +31,7 @@ public sealed class NotesController(INoteRepository repository, TimeProvider tim
         try
         {
             var note = Note.Create(
-                new UserId(request.OwnerId),
+                userContext.GetRequiredUserId(),
                 request.Title,
                 request.Content,
                 NoteContractMapper.ToDomain(request.Visibility),
@@ -43,15 +50,12 @@ public sealed class NotesController(INoteRepository repository, TimeProvider tim
     [HttpGet]
     [ProducesResponseType<IReadOnlyList<NoteResponse>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<IReadOnlyList<NoteResponse>>> List(
-        [FromQuery] int userId,
-        [FromQuery] int[]? teamIds,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<NoteResponse>>> List(CancellationToken cancellationToken)
     {
         try
         {
             var accessibleNotes = (await repository.ListAsync(cancellationToken))
-                .Where(note => note.CanBeViewedBy(new UserId(userId), CreateTeamIds(teamIds)))
+                .Where(note => note.CanBeViewedBy(userContext.GetRequiredUserId(), new HashSet<TeamId>()))
                 .Select(NoteContractMapper.ToContract)
                 .ToArray();
 
@@ -67,16 +71,12 @@ public sealed class NotesController(INoteRepository repository, TimeProvider tim
     [ProducesResponseType<NoteResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<NoteResponse>> Get(
-        Guid noteId,
-        [FromQuery] int userId,
-        [FromQuery] int[]? teamIds,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<NoteResponse>> Get(Guid noteId, CancellationToken cancellationToken)
     {
         try
         {
             var note = await repository.GetByIdAsync(new NoteId(noteId), cancellationToken);
-            if (note is null || !note.CanBeViewedBy(new UserId(userId), CreateTeamIds(teamIds)))
+            if (note is null || !note.CanBeViewedBy(userContext.GetRequiredUserId(), new HashSet<TeamId>()))
             {
                 return NotFound();
             }
@@ -96,7 +96,6 @@ public sealed class NotesController(INoteRepository repository, TimeProvider tim
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<NoteResponse>> Update(
         Guid noteId,
-        [FromQuery] int userId,
         UpdateNoteRequest request,
         CancellationToken cancellationToken)
     {
@@ -108,7 +107,7 @@ public sealed class NotesController(INoteRepository repository, TimeProvider tim
                 return NotFound();
             }
 
-            if (note.OwnerId != new UserId(userId))
+            if (note.OwnerId != userContext.GetRequiredUserId())
             {
                 return StatusCode(StatusCodes.Status403Forbidden);
             }
@@ -134,10 +133,7 @@ public sealed class NotesController(INoteRepository repository, TimeProvider tim
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Delete(
-        Guid noteId,
-        [FromQuery] int userId,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Delete(Guid noteId, CancellationToken cancellationToken)
     {
         try
         {
@@ -147,7 +143,7 @@ public sealed class NotesController(INoteRepository repository, TimeProvider tim
                 return NotFound();
             }
 
-            if (note.OwnerId != new UserId(userId))
+            if (note.OwnerId != userContext.GetRequiredUserId())
             {
                 return StatusCode(StatusCodes.Status403Forbidden);
             }
@@ -160,7 +156,4 @@ public sealed class NotesController(INoteRepository repository, TimeProvider tim
             return BadRequest(new { error = exception.Message });
         }
     }
-
-    private static HashSet<TeamId> CreateTeamIds(IEnumerable<int>? values) =>
-        values?.Select(value => new TeamId(value)).ToHashSet() ?? [];
 }
