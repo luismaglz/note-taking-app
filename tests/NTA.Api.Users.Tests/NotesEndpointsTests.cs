@@ -34,7 +34,7 @@ public sealed class NotesEndpointsTests(NotesApiFactory factory) : IClassFixture
 
         var createResponse = await client.PostAsJsonAsync(
             "/notes",
-            new CreateNoteRequest("Draft", "Initial content", NoteVisibilityContract.Private, null));
+            new CreateNoteRequest("Draft", "Initial content"));
 
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
 
@@ -53,15 +53,13 @@ public sealed class NotesEndpointsTests(NotesApiFactory factory) : IClassFixture
 
         var updateResponse = await client.PutAsJsonAsync(
             $"/notes/{created.Id}",
-            new UpdateNoteRequest("Published", "Updated content", NoteVisibilityContract.Public, null));
+            new UpdateNoteRequest("Published", "Updated content"));
 
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
 
         var updated = await updateResponse.Content.ReadFromJsonAsync<NoteResponse>(JsonOptions);
         Assert.NotNull(updated);
         Assert.Equal("Published", updated.Title);
-        Assert.Equal(NoteVisibilityContract.Public, updated.Visibility);
-
         var deleteResponse = await client.DeleteAsync($"/notes/{created.Id}");
 
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
@@ -69,6 +67,94 @@ public sealed class NotesEndpointsTests(NotesApiFactory factory) : IClassFixture
         var afterDeleteResponse = await client.GetAsync($"/notes/{created.Id}");
 
         Assert.Equal(HttpStatusCode.NotFound, afterDeleteResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task AccessGrants_AuthorizeDirectUsersAndTeamMembersByPermission()
+    {
+        using var owner = factory.CreateClient();
+        using var directUser = factory.CreateClient();
+        using var nonMember = factory.CreateClient();
+        await AuthenticateAsync(owner, 1);
+        await AuthenticateAsync(directUser, 2);
+        await AuthenticateAsync(nonMember, 4);
+
+        var directNote = await CreateNoteAsync(owner, "Direct");
+
+        Assert.Equal(HttpStatusCode.NotFound, (await directUser.GetAsync($"/notes/{directNote.Id}")).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await directUser.PutAsJsonAsync($"/notes/{directNote.Id}", new UpdateNoteRequest("Denied", "Denied"))).StatusCode);
+
+        await GrantAsync(owner, directNote.Id, AccessPrincipalKindContract.User, 2, NotePermissionContract.Read);
+        Assert.Equal(HttpStatusCode.OK, (await directUser.GetAsync($"/notes/{directNote.Id}")).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await directUser.PutAsJsonAsync($"/notes/{directNote.Id}", new UpdateNoteRequest("Denied", "Denied"))).StatusCode);
+
+        await GrantAsync(owner, directNote.Id, AccessPrincipalKindContract.User, 2, NotePermissionContract.Write);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await directUser.PutAsJsonAsync($"/notes/{directNote.Id}", new UpdateNoteRequest("Permitted", "Updated"))).StatusCode);
+
+        await GrantAsync(owner, directNote.Id, AccessPrincipalKindContract.User, 2, NotePermissionContract.Delete);
+        Assert.Equal(HttpStatusCode.NoContent, (await directUser.DeleteAsync($"/notes/{directNote.Id}")).StatusCode);
+
+        var teamNote = await CreateNoteAsync(owner, "Team");
+        await GrantAsync(owner, teamNote.Id, AccessPrincipalKindContract.Team, 1, NotePermissionContract.Read);
+
+        Assert.Equal(HttpStatusCode.OK, (await directUser.GetAsync($"/notes/{teamNote.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await nonMember.GetAsync($"/notes/{teamNote.Id}")).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.Conflict,
+            (await owner.PostAsJsonAsync(
+                $"/notes/{teamNote.Id}/access-grants",
+                new CreateNoteAccessGrantRequest(
+                    AccessPrincipalKindContract.Team,
+                    1,
+                    NotePermissionContract.Read))).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            (await owner.PostAsJsonAsync(
+                $"/notes/{teamNote.Id}/access-grants",
+                new CreateNoteAccessGrantRequest(
+                    AccessPrincipalKindContract.User,
+                    0,
+                    NotePermissionContract.Read))).StatusCode);
+    }
+
+    private static async Task AuthenticateAsync(HttpClient client, int userId)
+    {
+        var response = await client.PostAsync($"/auth/{userId}", null);
+        var authentication = await response.Content.ReadFromJsonAsync<AuthenticationResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(authentication);
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", authentication.AccessToken);
+    }
+
+    private static async Task<NoteResponse> CreateNoteAsync(HttpClient client, string title)
+    {
+        var response = await client.PostAsJsonAsync("/notes", new CreateNoteRequest(title, "Content"));
+        var note = await response.Content.ReadFromJsonAsync<NoteResponse>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return Assert.IsType<NoteResponse>(note);
+    }
+
+    private static async Task GrantAsync(
+        HttpClient client,
+        Guid noteId,
+        AccessPrincipalKindContract principalKind,
+        int principalId,
+        NotePermissionContract permission)
+    {
+        var response = await client.PostAsJsonAsync(
+            $"/notes/{noteId}/access-grants",
+            new CreateNoteAccessGrantRequest(principalKind, principalId, permission));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
     private static JsonSerializerOptions CreateJsonOptions()
