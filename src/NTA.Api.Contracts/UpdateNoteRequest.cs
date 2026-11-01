@@ -1,9 +1,8 @@
 using NTA.Domain.Models;
 
-namespace NTA.Api.Users.Contracts;
+namespace NTA.Api.Contracts;
 
-public sealed record CreateNoteRequest(
-    int OwnerId,
+public sealed record UpdateNoteRequest(
     string Title,
     string Content,
     NoteVisibility Visibility,

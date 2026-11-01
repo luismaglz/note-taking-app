@@ -1,6 +1,6 @@
 using NTA.Domain.Models;
 
-namespace NTA.Api.Users.Contracts;
+namespace NTA.Api.Contracts;
 
 public sealed record NoteResponse(
     Guid Id,
