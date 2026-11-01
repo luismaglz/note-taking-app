@@ -3,3 +3,5 @@ obj/
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
+/orchestration/AspireHost/.data/
+/src/NTA.Api.Users/note-taking-app.db*
