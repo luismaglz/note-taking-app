@@ -16,15 +16,9 @@ internal static class SqliteNoteMapper
         Title = note.Title,
         Content = note.Content,
         CreatedAtUnixMilliseconds = note.CreatedAt.ToUnixTimeMilliseconds(),
-        UpdatedAtUnixMilliseconds = note.UpdatedAt.ToUnixTimeMilliseconds()
+        UpdatedAtUnixMilliseconds = note.UpdatedAt.ToUnixTimeMilliseconds(),
+        Revision = note.Revision
     };
-
-    public static void Apply(Note note, SqliteNote persistence)
-    {
-        persistence.Title = note.Title;
-        persistence.Content = note.Content;
-        persistence.UpdatedAtUnixMilliseconds = note.UpdatedAt.ToUnixTimeMilliseconds();
-    }
 
     public static Note ToDomain(SqliteNote persistence) =>
         new(
@@ -33,5 +27,6 @@ internal static class SqliteNoteMapper
             persistence.Title,
             persistence.Content,
             DateTimeOffset.FromUnixTimeMilliseconds(persistence.CreatedAtUnixMilliseconds),
-            DateTimeOffset.FromUnixTimeMilliseconds(persistence.UpdatedAtUnixMilliseconds));
+            DateTimeOffset.FromUnixTimeMilliseconds(persistence.UpdatedAtUnixMilliseconds),
+            persistence.Revision);
 }

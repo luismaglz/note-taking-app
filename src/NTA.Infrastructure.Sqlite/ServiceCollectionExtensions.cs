@@ -33,6 +33,7 @@ public static class ServiceCollectionExtensions
         var dbContext = scope.ServiceProvider.GetRequiredService<NoteDbContext>();
         await dbContext.Database.EnsureCreatedAsync(cancellationToken);
         await RemoveLegacyNoteSharingColumnsAsync(dbContext, cancellationToken);
+        await EnsureNoteRevisionColumnAsync(dbContext, cancellationToken);
         await dbContext.Database.ExecuteSqlRawAsync(
             """CREATE TABLE IF NOT EXISTS "Users" ("Id" INTEGER NOT NULL CONSTRAINT "PK_Users" PRIMARY KEY, "Name" TEXT NOT NULL DEFAULT '')""",
             cancellationToken);
@@ -149,5 +150,35 @@ public static class ServiceCollectionExtensions
         {
             await connection.CloseAsync();
         }
+    }
+
+    private static async Task EnsureNoteRevisionColumnAsync(
+        NoteDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        await dbContext.Database.OpenConnectionAsync(cancellationToken);
+
+        try
+        {
+            await using var command = dbContext.Database.GetDbConnection().CreateCommand();
+            command.CommandText = """PRAGMA table_info("Notes")""";
+
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                if (string.Equals(reader.GetString(1), "Revision", StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+        }
+        finally
+        {
+            await dbContext.Database.CloseConnectionAsync();
+        }
+
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """ALTER TABLE "Notes" ADD COLUMN "Revision" INTEGER NOT NULL DEFAULT 1""",
+            cancellationToken);
     }
 }
