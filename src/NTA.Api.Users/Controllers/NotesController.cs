@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using NTA.Api.Contracts;
 using NTA.Api.Users.Mappings;
 using NTA.Core.Authentication;
@@ -50,8 +50,7 @@ public sealed class NotesController(
     [HttpGet]
     [ProducesResponseType<IReadOnlyList<NoteResponse>>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<IReadOnlyList<NoteResponse>>> List(
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<NoteResponse>>> List(CancellationToken cancellationToken)
     {
         try
         {
@@ -72,9 +71,7 @@ public sealed class NotesController(
     [ProducesResponseType<NoteResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<NoteResponse>> Get(
-        Guid noteId,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<NoteResponse>> Get(Guid noteId, CancellationToken cancellationToken)
     {
         try
         {
@@ -136,9 +133,7 @@ public sealed class NotesController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Delete(
-        Guid noteId,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Delete(Guid noteId, CancellationToken cancellationToken)
     {
         try
         {

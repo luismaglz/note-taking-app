@@ -4,7 +4,7 @@ using NTA.Infrastructure.Sqlite.Models;
 namespace NTA.Infrastructure.Sqlite;
 
 /// <summary>
-/// Represents the SQLite persistence context for note records.
+/// Represents the SQLite persistence context for note and user records.
 /// </summary>
 public sealed class NoteDbContext(DbContextOptions<NoteDbContext> options) : DbContext(options)
 {
